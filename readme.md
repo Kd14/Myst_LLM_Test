@@ -1,4 +1,4 @@
-# FHIR Bulk Export and NDJSON Viewer
+# Epic EHR Proof of Concept
 
 ## Overview
 
@@ -52,7 +52,7 @@ openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:204
 
 # Generate a public key certificate (self-signed) from the private key
 openssl req -new -x509 -key private_key.pem -out public_cert.pem -days 365 -subj "/CN=YourAppName"
-
+```
 
 Upload `public_cert.pem` to the Epic Developer Sandbox portal when registering your app.
 
@@ -67,3 +67,53 @@ PRIVATE_KEY_PATH=/path/to/private_key.pem
 AUTH_URL=[https://fhir.epic.com/interconnect-fhir/oauth2/token](https://fhir.epic.com/interconnect-fhir/oauth2/token)
 FHIR_BASE_URL=[https://fhir.epic.com/interconnect-fhir/api/FHIR/DSTU2](https://fhir.epic.com/interconnect-fhir/api/FHIR/DSTU2)
 SCOPES=system/Patient.read system/Observation.read system/Immunization.read system/DiagnosticReport.read system/$export
+```
+The scripts load these variables securely to handle authentication and API endpoints.
+
+### 4.Running the project
+Start the streamlit app:
+
+```bash
+streamlit run app.py
+```
+
+Press the "Run Bulk Export" button to trigger the bulk_export.py as a subporcess and wait for the .ndjson files to be downloaded. 
+
+Select and of the files to view their contents in a user-friendly manner
+
+### 5. Notes of EPIC Sandbox data
+#### Read-Only Environment
+
+The Epic Sandbox is a read-only testing environment. You cannot create, update, or delete data programmatically or via UI. This protects the sandbox from corruption and mimics production constraints.
+
+#### No Data Upload
+You cannot import or upload external datasets (e.g., Kaggle data) into the sandbox.
+
+#### Data Persistence
+The sandbox is periodically reset by Epic, so data may revert to its initial state.
+
+#### Asynchronous Data Updates & Bulk Export
+Epic does not support webhooks or push notifications for real-time data changes in the sandbox.
+
+To check for new data, you must poll FHIR endpoints or use Bulk Data Export repeatedly.
+
+The Bulk Data Export API allows asynchronous batch export of large datasets via a job system:
+
+* Initiate export job
+
+* Poll job status
+
+* Download completed NDJSON files
+
+This method is suitable for periodic sync but not for real-time streaming.
+
+## Summary
+This project demonstrates:
+
+* How to securely authenticate with Epic sandbox backend service apps using JWT client assertion and uploaded certificates.
+
+* How to perform bulk asynchronous export of FHIR resources.
+
+* How to view and explore exported data via an interactive Streamlit web app.
+
+* The operational constraints of the Epic sandbox environment and strategies for asynchronous data handling.
