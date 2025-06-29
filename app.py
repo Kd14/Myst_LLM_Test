@@ -100,6 +100,54 @@ def render_diagnostic_report(report):
             url = form.get("url", "#")
             st.markdown(f"[{title}]({url})")
 
+def extract_observation_summary(resource):
+    """
+    Custom summary extractor for Observation resource, especially BP vitals with components.
+    """
+    # Basic info
+    obs_id = resource.get("id", "")
+    status = resource.get("status", "")
+    category = ", ".join([cat.get("text", "") for cat in resource.get("category", [])])
+    code = resource.get("code", {}).get("text", "")
+
+    subject = resource.get("subject", {}).get("display", resource.get("subject", {}).get("reference", ""))
+    effective = resource.get("effectiveDateTime", "")
+    issued = resource.get("issued", "")
+
+    # Components (e.g. systolic/diastolic for BP)
+    components = resource.get("component", [])
+    comp_summary = {}
+    for c in components:
+        ctext = c.get("code", {}).get("text", "")
+        val_qty = c.get("valueQuantity", {})
+        val = val_qty.get("value", "")
+        unit = val_qty.get("unit", "")
+        if ctext:
+            comp_summary[ctext] = f"{val} {unit}".strip()
+
+    # Compose a display string for components if exist
+    if comp_summary:
+        comp_display = "; ".join([f"{k}: {v}" for k, v in comp_summary.items()])
+    else:
+        # Fallback to valueQuantity on root Observation if no components
+        val_qty = resource.get("valueQuantity", {})
+        if val_qty:
+            comp_display = f"{val_qty.get('value', '')} {val_qty.get('unit', '')}".strip()
+        else:
+            comp_display = ""
+
+    return {
+        "ID": obs_id,
+        "Status": status,
+        "Category": category,
+        "Code": code,
+        "Subject": subject,
+        "Effective Date": effective,
+        "Issued": issued,
+        "Values": comp_display,
+    }
+
+
 def format_datetime(dt_string):
     try:
         return datetime.fromisoformat(dt_string.replace("Z", "+00:00")).strftime("%b %d, %Y %H:%M")
@@ -123,6 +171,10 @@ def display_summary(records, resource_type):
         df = pd.json_normalize(records)
         csv = df.to_csv(index=False)
         st.download_button("Download DiagnosticReport data as CSV", csv, "DiagnosticReport.csv", "text/csv")
+    elif resource_type == "Observation":
+        rows = [extract_observation_summary(r) for r in records]
+        df = pd.DataFrame(rows)
+        st.dataframe(df)
     else:
         st.warning(f"No custom view for resourceType '{resource_type}'. Showing raw data.")
         df = pd.json_normalize(records)
